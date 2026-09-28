@@ -3,9 +3,11 @@ import pandas as pd
 from datetime import date, timedelta
 from pathlib import Path
 import base64
+import re
 
 # =========================================================
-# 1. CẤU HÌNH
+# CHARM PEARL HOTEL
+# HOTEL MANAGEMENT SYSTEM
 # =========================================================
 
 st.set_page_config(
@@ -15,24 +17,71 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# =========================================================
+# 1. FILE ẢNH
+# =========================================================
+
 BASE = Path(__file__).parent
 
 LOGO = BASE / "IMG_LOGO11.jpg"
 BANNER = BASE / "IMG_BANNER2.jpg"
-BG = BASE / "IMG_NENCHIM3.jpg"
+BACKGROUND = BASE / "IMG_NENCHIM3.jpg"
 
-HOTEL = "CHARM PEARL HOTEL"
-LOCATION = "VŨNG TÀU"
 
 # =========================================================
-# 2. HÀM
+# 2. THÔNG TIN KHÁCH SẠN
 # =========================================================
 
-def money(x):
-    return f"{int(x):,}".replace(",", ".") + " VNĐ"
+HOTEL_NAME = "CHARM PEARL HOTEL"
+HOTEL_LOCATION = "Vũng Tàu"
+
+ROOM_TYPES = {
+    "Standard": {
+        "price": 550000,
+        "capacity": 2,
+        "description": "Phòng tiêu chuẩn, tiện nghi và phù hợp cho 1–2 khách."
+    },
+
+    "Deluxe": {
+        "price": 750000,
+        "capacity": 2,
+        "description": "Phòng Deluxe rộng rãi, thiết kế hiện đại và thoải mái."
+    },
+
+    "Suite": {
+        "price": 1200000,
+        "capacity": 3,
+        "description": "Phòng Suite cao cấp với không gian nghỉ dưỡng rộng rãi."
+    },
+
+    "Family": {
+        "price": 1500000,
+        "capacity": 4,
+        "description": "Phòng Family phù hợp cho gia đình hoặc nhóm khách."
+    }
+}
+
+STATUSES = [
+    "Trống",
+    "Đã đặt",
+    "Đang ở",
+    "Đang dọn",
+    "Bảo trì"
+]
 
 
-def image_ok(path):
+# =========================================================
+# 3. HÀM CƠ BẢN
+# =========================================================
+
+def money(value):
+    try:
+        return f"{int(value):,}".replace(",", ".") + " VNĐ"
+    except:
+        return "0 VNĐ"
+
+
+def exists(path):
     return path.exists()
 
 
@@ -46,21 +95,9 @@ def status_icon(status):
     }.get(status, "⚪")
 
 
-ROOM_TYPES = {
-    "Standard": {"price": 550000, "capacity": 2},
-    "Deluxe": {"price": 750000, "capacity": 2},
-    "Suite": {"price": 1200000, "capacity": 3},
-    "Family": {"price": 1500000, "capacity": 4}
-}
-
-STATUSES = [
-    "Trống",
-    "Đã đặt",
-    "Đang ở",
-    "Đang dọn",
-    "Bảo trì"
-]
-
+# =========================================================
+# 4. TẠO 50 PHÒNG
+# =========================================================
 
 def create_rooms():
 
@@ -74,10 +111,13 @@ def create_rooms():
 
             if number <= 4:
                 room_type = "Standard"
+
             elif number <= 8:
                 room_type = "Deluxe"
+
             elif number == 9:
                 room_type = "Suite"
+
             else:
                 room_type = "Family"
 
@@ -94,11 +134,12 @@ def create_rooms():
 
 
 # =========================================================
-# 3. SESSION
+# 5. SESSION STATE
 # =========================================================
 
 if "rooms" not in st.session_state:
     st.session_state.rooms = create_rooms()
+
 
 if "bookings" not in st.session_state:
 
@@ -119,34 +160,66 @@ if "bookings" not in st.session_state:
         ]
     )
 
+
 if "services" not in st.session_state:
 
-    st.session_state.services = pd.DataFrame([
-        ["DV001", "Ăn sáng", 100000],
-        ["DV002", "Cà phê", 45000],
-        ["DV003", "Giặt ủi", 80000],
-        ["DV004", "Minibar", 60000],
-        ["DV005", "Extra Bed", 200000],
-        ["DV006", "Spa", 300000],
-        ["DV007", "Đưa đón sân bay", 350000]
-    ], columns=["Mã", "Dịch vụ", "Đơn giá"])
+    st.session_state.services = pd.DataFrame(
+        [
+            ["DV001", "Ăn sáng", 100000],
+            ["DV002", "Cà phê", 45000],
+            ["DV003", "Giặt ủi", 80000],
+            ["DV004", "Minibar", 60000],
+            ["DV005", "Extra Bed", 200000],
+            ["DV006", "Spa", 300000],
+            ["DV007", "Đưa đón sân bay", 350000]
+        ],
+        columns=[
+            "Mã",
+            "Dịch vụ",
+            "Đơn giá"
+        ]
+    )
 
 
 # =========================================================
-# 4. CSS - GIAO DIỆN MỚI
+# 6. CHAT HISTORY
 # =========================================================
 
-st.markdown("""
+if "chat_history" not in st.session_state:
+
+    st.session_state.chat_history = [
+        {
+            "role": "assistant",
+            "content":
+                "Xin chào! Tôi là trợ lý ảo của "
+                "Charm Pearl Hotel. 🏨\n\n"
+                "Tôi có thể hỗ trợ bạn về phòng, "
+                "giá phòng, dịch vụ, phòng trống "
+                "và hướng dẫn đặt phòng."
+        }
+    ]
+
+
+# =========================================================
+# 7. CSS
+# =========================================================
+
+st.markdown(
+    """
 <style>
 
 .stApp {
     font-family: Arial, sans-serif;
 }
 
-/* SIDEBAR */
+/* ================================
+   SIDEBAR
+================================ */
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(
+
+    background:
+    linear-gradient(
         180deg,
         #082c3c 0%,
         #0d4558 55%,
@@ -158,158 +231,280 @@ section[data-testid="stSidebar"] * {
     color: white !important;
 }
 
-/* LOGO */
 
-.logo-small img {
-    border-radius: 12px;
-}
-
-/* HERO */
+/* ================================
+   HERO
+================================ */
 
 .hero {
-    background: rgba(255,255,255,0.94);
-    border-radius: 20px;
+
+    background:
+    rgba(255,255,255,0.95);
+
     padding: 28px;
-    margin-bottom: 25px;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.08);
+
+    border-radius: 22px;
+
     text-align: center;
+
+    margin-bottom: 22px;
+
+    box-shadow:
+    0 6px 25px rgba(0,0,0,0.08);
 }
 
 .hero-title {
-    font-size: 38px;
-    font-weight: 800;
+
     color: #123c4c;
+
+    font-size: 38px;
+
+    font-weight: 800;
+
     letter-spacing: 2px;
 }
 
 .hero-sub {
-    color: #70828b;
-    font-size: 16px;
-}
 
-/* DASHBOARD CARD */
-
-.card {
-    background: rgba(255,255,255,0.95);
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 3px 15px rgba(0,0,0,0.07);
-    min-height: 115px;
-}
-
-.card-title {
-    color: #72828a;
-    font-size: 14px;
-}
-
-.card-number {
-    color: #123c4c;
-    font-size: 29px;
-    font-weight: 800;
-    margin-top: 8px;
-}
-
-/* ROOM */
-
-.room {
-    background: rgba(255,255,255,0.96);
-    border-radius: 15px;
-    padding: 14px;
-    margin-bottom: 12px;
-    border: 1px solid #e4e9ec;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.room-number {
-    font-size: 22px;
-    font-weight: 800;
-    color: #143d4d;
-}
-
-.room-type {
     color: #71828a;
-    font-size: 13px;
+
+    margin-top: 6px;
+
+    font-size: 15px;
 }
 
-.room-status {
-    margin-top: 8px;
-    font-weight: 600;
-}
 
-/* SECTION */
+/* ================================
+   SECTION
+================================ */
 
-.section {
-    font-size: 25px;
-    font-weight: 800;
+.section-title {
+
     color: #143d4d;
-    margin-top: 20px;
+
+    font-size: 25px;
+
+    font-weight: 800;
+
+    margin-top: 25px;
+
     margin-bottom: 15px;
 }
 
-/* BUTTON */
 
-.stButton > button {
-    border-radius: 10px;
-    font-weight: 700;
+/* ================================
+   DASHBOARD CARD
+================================ */
+
+.dashboard-card {
+
+    background:
+    rgba(255,255,255,0.96);
+
+    padding: 20px;
+
+    border-radius: 17px;
+
+    min-height: 110px;
+
+    box-shadow:
+    0 4px 18px rgba(0,0,0,0.07);
+
+    border:
+    1px solid #e7edef;
 }
 
-/* DATAFRAME */
+.dashboard-label {
 
-[data-testid="stDataFrame"] {
-    border-radius: 12px;
+    color: #75868e;
+
+    font-size: 14px;
+}
+
+.dashboard-value {
+
+    color: #123c4c;
+
+    font-size: 27px;
+
+    font-weight: 800;
+
+    margin-top: 8px;
+}
+
+
+/* ================================
+   ROOM CARD
+================================ */
+
+.room-card {
+
+    background:
+    rgba(255,255,255,0.97);
+
+    padding: 14px;
+
+    border-radius: 15px;
+
+    margin-bottom: 12px;
+
+    border:
+    1px solid #e2e8eb;
+
+    box-shadow:
+    0 3px 12px rgba(0,0,0,0.05);
+}
+
+.room-number {
+
+    color: #123c4c;
+
+    font-size: 21px;
+
+    font-weight: 800;
+}
+
+.room-type {
+
+    color: #71828a;
+
+    font-size: 13px;
+
+    margin-top: 4px;
+}
+
+.room-status {
+
+    font-weight: 700;
+
+    margin-top: 8px;
+}
+
+
+/* ================================
+   CHATBOX
+================================ */
+
+.chat-header {
+
+    background:
+    linear-gradient(
+        135deg,
+        #123c4c,
+        #0b6075
+    );
+
+    color: white;
+
+    padding: 24px;
+
+    border-radius: 20px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+    0 6px 25px rgba(0,0,0,0.12);
+}
+
+.chat-header h2 {
+
+    margin: 0;
+}
+
+.chat-header p {
+
+    margin-bottom: 0;
+
+    opacity: 0.9;
+}
+
+
+/* ================================
+   BUTTON
+================================ */
+
+.stButton > button {
+
+    border-radius: 10px;
+
+    font-weight: 700;
+
+    min-height: 42px;
 }
 
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True
+)
 
 
 # =========================================================
-# 5. NỀN CHÌM
+# 8. NỀN CHÌM
 # =========================================================
 
-if image_ok(BG):
+if exists(BACKGROUND):
 
-    encoded = base64.b64encode(
-        BG.read_bytes()
-    ).decode()
+    try:
 
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image:
-            linear-gradient(
-                rgba(245,248,249,0.93),
-                rgba(245,248,249,0.93)
-            ),
-            url("data:image/jpeg;base64,{encoded}");
+        encoded = base64.b64encode(
+            BACKGROUND.read_bytes()
+        ).decode()
 
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown(
+            f"""
+            <style>
+
+            .stApp {{
+
+                background-image:
+
+                linear-gradient(
+                    rgba(245,248,249,0.94),
+                    rgba(245,248,249,0.94)
+                ),
+
+                url(
+                    "data:image/jpeg;base64,{encoded}"
+                );
+
+                background-size: cover;
+
+                background-position: center;
+
+                background-attachment: fixed;
+            }}
+
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+    except:
+        pass
 
 
 # =========================================================
-# 6. SIDEBAR
+# 9. SIDEBAR
 # =========================================================
 
 with st.sidebar:
 
-    # LOGO NHỎ BÊN TRÁI
-    if image_ok(LOGO):
+    # LOGO BÊN TRÁI
+
+    if exists(LOGO):
 
         st.image(
             str(LOGO),
-            width=90
+            width=85
         )
 
-    st.markdown("## CHARM PEARL")
-    st.caption("HOTEL MANAGEMENT SYSTEM")
+    st.markdown(
+        "## CHARM PEARL"
+    )
+
+    st.caption(
+        "HOTEL MANAGEMENT SYSTEM"
+    )
 
     st.divider()
 
@@ -325,38 +520,57 @@ with st.sidebar:
             "🍽️ Dịch vụ",
             "🧾 Hóa đơn",
             "💰 Doanh thu",
-            "📊 Báo cáo"
+            "📊 Báo cáo",
+            "💬 Chat với Charm Pearl"
         ]
     )
 
     st.divider()
 
-    st.caption("CHARM PEARL HOTEL")
-    st.caption("Vũng Tàu")
-    st.caption("50 phòng · 5 tầng")
+    st.caption(
+        "CHARM PEARL HOTEL"
+    )
+
+    st.caption(
+        "Vũng Tàu"
+    )
+
+    st.caption(
+        "50 phòng · 5 tầng"
+    )
 
 
 # =========================================================
-# 7. DASHBOARD
+# 10. DASHBOARD
 # =========================================================
 
 if menu == "🏠 Dashboard":
 
-    # HERO
     st.markdown(
-        '<div class="hero">'
-        '<div class="hero-title">CHARM PEARL HOTEL</div>'
-        '<div class="hero-sub">'
-        'Hotel Management System · Vũng Tàu'
-        '</div>'
-        '</div>',
+        """
+        <div class="hero">
+
+            <div class="hero-title">
+                CHARM PEARL HOTEL
+            </div>
+
+            <div class="hero-sub">
+                Hotel Management System · Vũng Tàu
+            </div>
+
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
-    # BANNER Ở GIỮA
-    if image_ok(BANNER):
 
-        left, center, right = st.columns([1, 2.4, 1])
+    # BANNER CHÍNH GIỮA
+
+    if exists(BANNER):
+
+        left, center, right = st.columns(
+            [1, 2.5, 1]
+        )
 
         with center:
 
@@ -365,26 +579,37 @@ if menu == "🏠 Dashboard":
                 use_container_width=True
             )
 
+
+    # THỐNG KÊ
+
     st.markdown(
-        '<div class="section">Tổng quan khách sạn</div>',
+        '<div class="section-title">'
+        'Tổng quan khách sạn'
+        '</div>',
         unsafe_allow_html=True
     )
 
     rooms = st.session_state.rooms
     bookings = st.session_state.bookings
 
-    total = len(rooms)
+    total_rooms = len(rooms)
 
-    empty = len(
-        rooms[rooms["Trạng thái"] == "Trống"]
+    empty_rooms = len(
+        rooms[
+            rooms["Trạng thái"] == "Trống"
+        ]
     )
 
-    reserved = len(
-        rooms[rooms["Trạng thái"] == "Đã đặt"]
+    reserved_rooms = len(
+        rooms[
+            rooms["Trạng thái"] == "Đã đặt"
+        ]
     )
 
-    occupied = len(
-        rooms[rooms["Trạng thái"] == "Đang ở"]
+    occupied_rooms = len(
+        rooms[
+            rooms["Trạng thái"] == "Đang ở"
+        ]
     )
 
     revenue = (
@@ -395,60 +620,72 @@ if menu == "🏠 Dashboard":
 
     cards = st.columns(5)
 
-    values = [
-        ("🏨", "Tổng phòng", total),
-        ("🟢", "Phòng trống", empty),
-        ("🟣", "Đã đặt", reserved),
-        ("🔵", "Đang ở", occupied),
+    card_data = [
+        ("🏨", "Tổng phòng", total_rooms),
+        ("🟢", "Phòng trống", empty_rooms),
+        ("🟣", "Đã đặt", reserved_rooms),
+        ("🔵", "Đang ở", occupied_rooms),
         ("💰", "Doanh thu", money(revenue))
     ]
 
-    for col, item in zip(cards, values):
+    for col, item in zip(cards, card_data):
 
         with col:
 
             st.markdown(
                 f"""
-                <div class="card">
-                    <div class="card-title">
+                <div class="dashboard-card">
+
+                    <div class="dashboard-label">
                         {item[0]} {item[1]}
                     </div>
-                    <div class="card-number">
+
+                    <div class="dashboard-value">
                         {item[2]}
                     </div>
+
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
+
+    # SƠ ĐỒ PHÒNG
+
     st.markdown(
-        '<div class="section">Sơ đồ 50 phòng</div>',
+        '<div class="section-title">'
+        'Sơ đồ 50 phòng'
+        '</div>',
         unsafe_allow_html=True
     )
 
     floor = st.selectbox(
         "Chọn tầng",
-        ["Tất cả", 1, 2, 3, 4, 5]
+        ["Tất cả", 1, 2, 3, 4, 5],
+        key="dashboard_floor"
     )
 
     if floor == "Tất cả":
-        show_rooms = rooms
+
+        display_rooms = rooms
+
     else:
-        show_rooms = rooms[
+
+        display_rooms = rooms[
             rooms["Tầng"] == floor
         ]
 
-    cols = st.columns(5)
+    room_cols = st.columns(5)
 
     for index, (_, room) in enumerate(
-        show_rooms.iterrows()
+        display_rooms.iterrows()
     ):
 
-        with cols[index % 5]:
+        with room_cols[index % 5]:
 
             st.markdown(
                 f"""
-                <div class="room">
+                <div class="room-card">
 
                     <div class="room-number">
                         🛏️ {room["Phòng"]}
@@ -460,7 +697,12 @@ if menu == "🏠 Dashboard":
                     </div>
 
                     <div>
-                        {money(room["Giá"])} / đêm
+                        {money(room["Giá"])}
+                        / đêm
+                    </div>
+
+                    <div>
+                        👥 {room["Sức chứa"]} khách
                     </div>
 
                     <div class="room-status">
@@ -475,71 +717,80 @@ if menu == "🏠 Dashboard":
 
 
 # =========================================================
-# 8. QUẢN LÝ PHÒNG
+# 11. QUẢN LÝ PHÒNG
 # =========================================================
 
 elif menu == "🛏️ Phòng":
 
-    st.title("🛏️ Quản lý phòng")
+    st.title(
+        "🛏️ Quản lý phòng"
+    )
 
     rooms = st.session_state.rooms
 
-    c1, c2, c3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    with c1:
+    with col1:
 
         floor = st.selectbox(
             "Tầng",
             ["Tất cả", 1, 2, 3, 4, 5]
         )
 
-    with c2:
+    with col2:
 
         room_type = st.selectbox(
             "Loại phòng",
             ["Tất cả"] + list(ROOM_TYPES.keys())
         )
 
-    with c3:
+    with col3:
 
         status = st.selectbox(
             "Trạng thái",
             ["Tất cả"] + STATUSES
         )
 
-    result = rooms.copy()
+    filtered = rooms.copy()
 
     if floor != "Tất cả":
-        result = result[result["Tầng"] == floor]
+
+        filtered = filtered[
+            filtered["Tầng"] == floor
+        ]
 
     if room_type != "Tất cả":
-        result = result[
-            result["Loại phòng"] == room_type
+
+        filtered = filtered[
+            filtered["Loại phòng"] == room_type
         ]
 
     if status != "Tất cả":
-        result = result[
-            result["Trạng thái"] == status
+
+        filtered = filtered[
+            filtered["Trạng thái"] == status
         ]
 
     st.dataframe(
-        result,
+        filtered,
         use_container_width=True,
         hide_index=True
     )
 
     st.divider()
 
-    st.subheader("Cập nhật trạng thái")
+    st.subheader(
+        "Cập nhật trạng thái phòng"
+    )
 
-    with st.form("room_status"):
+    with st.form("room_update_form"):
 
-        room = st.selectbox(
+        selected_room = st.selectbox(
             "Phòng",
             rooms["Phòng"].tolist()
         )
 
-        new_status = st.selectbox(
+        selected_status = st.selectbox(
             "Trạng thái mới",
             STATUSES
         )
@@ -552,35 +803,39 @@ elif menu == "🛏️ Phòng":
     if submit:
 
         st.session_state.rooms.loc[
-            st.session_state.rooms["Phòng"] == room,
+            st.session_state.rooms["Phòng"]
+            == selected_room,
             "Trạng thái"
-        ] = new_status
+        ] = selected_status
 
         st.success(
-            f"Phòng {room}: {new_status}"
+            f"Phòng {selected_room} → "
+            f"{selected_status}"
         )
 
         st.rerun()
 
 
 # =========================================================
-# 9. ĐẶT PHÒNG
+# 12. ĐẶT PHÒNG
 # =========================================================
 
 elif menu == "📅 Đặt phòng":
 
-    st.title("📅 Đặt phòng")
+    st.title(
+        "📅 Đặt phòng"
+    )
 
-    c1, c2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-    with c1:
+    with col1:
 
         check_in = st.date_input(
             "Ngày check-in",
             date.today()
         )
 
-    with c2:
+    with col2:
 
         check_out = st.date_input(
             "Ngày check-out",
@@ -600,38 +855,28 @@ elif menu == "📅 Đặt phòng":
         ).days
 
         room_type = st.selectbox(
-            "Loại phòng",
+            "Hạng phòng",
             list(ROOM_TYPES.keys())
         )
 
-        suitable = st.session_state.rooms[
-            st.session_state.rooms["Loại phòng"]
-            == room_type
+        available = st.session_state.rooms[
+            (st.session_state.rooms["Loại phòng"] == room_type)
+            &
+            (st.session_state.rooms["Trạng thái"] == "Trống")
         ]
 
-        available = []
-
-        for _, r in suitable.iterrows():
-
-            if r["Trạng thái"] in [
-                "Bảo trì",
-                "Đang dọn"
-            ]:
-                continue
-
-            available.append(r["Phòng"])
-
-        if not available:
+        if available.empty:
 
             st.error(
-                "Không còn phòng phù hợp."
+                "Hiện không còn phòng trống "
+                "thuộc hạng này."
             )
 
         else:
 
             room = st.selectbox(
                 "Chọn phòng",
-                available
+                available["Phòng"].tolist()
             )
 
             st.success(
@@ -639,9 +884,9 @@ elif menu == "📅 Đặt phòng":
                 f"{room_type}."
             )
 
-            c1, c2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-            with c1:
+            with col1:
 
                 guest = st.text_input(
                     "Tên khách *"
@@ -651,7 +896,7 @@ elif menu == "📅 Đặt phòng":
                     "Số điện thoại *"
                 )
 
-            with c2:
+            with col2:
 
                 capacity = ROOM_TYPES[
                     room_type
@@ -659,12 +904,12 @@ elif menu == "📅 Đặt phòng":
 
                 guests = st.number_input(
                     "Số khách",
-                    1,
-                    capacity,
-                    1
+                    min_value=1,
+                    max_value=capacity,
+                    value=1
                 )
 
-                note = st.text_area(
+                st.text_area(
                     "Ghi chú"
                 )
 
@@ -677,7 +922,7 @@ elif menu == "📅 Đặt phòng":
             st.info(
                 f"Phòng {room} · "
                 f"{nights} đêm · "
-                f"Tổng {money(total)}"
+                f"{money(total)}"
             )
 
             if st.button(
@@ -700,39 +945,43 @@ elif menu == "📅 Đặt phòng":
 
                 else:
 
-                    old = st.session_state.bookings
-
-                    number = len(old) + 1
-
-                    booking_id = (
-                        f"BK{number:04d}"
+                    booking_number = (
+                        len(st.session_state.bookings)
+                        + 1
                     )
 
-                    new = pd.DataFrame([{
-                        "Mã booking": booking_id,
-                        "Phòng": room,
-                        "Khách hàng": guest,
-                        "Số điện thoại": phone,
-                        "Số khách": guests,
-                        "Check-in": check_in,
-                        "Check-out": check_out,
-                        "Số đêm": nights,
-                        "Tiền phòng": total,
-                        "Dịch vụ": 0,
-                        "Tổng tiền": total,
-                        "Trạng thái": "Đã đặt"
-                    }])
+                    booking_id = (
+                        f"BK{booking_number:04d}"
+                    )
+
+                    new_booking = pd.DataFrame(
+                        [{
+                            "Mã booking": booking_id,
+                            "Phòng": room,
+                            "Khách hàng": guest,
+                            "Số điện thoại": phone,
+                            "Số khách": guests,
+                            "Check-in": check_in,
+                            "Check-out": check_out,
+                            "Số đêm": nights,
+                            "Tiền phòng": total,
+                            "Dịch vụ": 0,
+                            "Tổng tiền": total,
+                            "Trạng thái": "Đã đặt"
+                        }]
+                    )
 
                     st.session_state.bookings = pd.concat(
                         [
                             st.session_state.bookings,
-                            new
+                            new_booking
                         ],
                         ignore_index=True
                     )
 
                     st.session_state.rooms.loc[
-                        st.session_state.rooms["Phòng"] == room,
+                        st.session_state.rooms["Phòng"]
+                        == room,
                         "Trạng thái"
                     ] = "Đã đặt"
 
@@ -741,16 +990,16 @@ elif menu == "📅 Đặt phòng":
                         f"Mã booking: {booking_id}"
                     )
 
-                    st.balloons()
-
 
 # =========================================================
-# 10. CHECK-IN
+# 13. CHECK-IN
 # =========================================================
 
 elif menu == "🛎️ Check-in":
 
-    st.title("🛎️ Check-in")
+    st.title(
+        "🛎️ Check-in"
+    )
 
     bookings = st.session_state.bookings
 
@@ -768,7 +1017,7 @@ elif menu == "🛎️ Check-in":
 
         booking_id = st.selectbox(
             "Mã booking",
-            waiting["Mã booking"]
+            waiting["Mã booking"].tolist()
         )
 
         selected = waiting[
@@ -817,12 +1066,14 @@ elif menu == "🛎️ Check-in":
 
 
 # =========================================================
-# 11. CHECK-OUT
+# 14. CHECK-OUT
 # =========================================================
 
 elif menu == "🚪 Check-out":
 
-    st.title("🚪 Check-out")
+    st.title(
+        "🚪 Check-out"
+    )
 
     bookings = st.session_state.bookings
 
@@ -840,7 +1091,7 @@ elif menu == "🚪 Check-out":
 
         booking_id = st.selectbox(
             "Booking",
-            staying["Mã booking"]
+            staying["Mã booking"].tolist()
         )
 
         selected = staying[
@@ -849,7 +1100,7 @@ elif menu == "🚪 Check-out":
 
         extra = st.number_input(
             "Dịch vụ phát sinh",
-            0,
+            min_value=0,
             step=50000
         )
 
@@ -903,12 +1154,14 @@ elif menu == "🚪 Check-out":
 
 
 # =========================================================
-# 12. KHÁCH HÀNG
+# 15. KHÁCH HÀNG
 # =========================================================
 
 elif menu == "👥 Khách hàng":
 
-    st.title("👥 Khách hàng")
+    st.title(
+        "👥 Khách hàng"
+    )
 
     bookings = st.session_state.bookings
 
@@ -921,7 +1174,7 @@ elif menu == "👥 Khách hàng":
     else:
 
         keyword = st.text_input(
-            "🔎 Tìm kiếm"
+            "🔎 Tìm kiếm khách hàng"
         )
 
         data = bookings.copy()
@@ -947,12 +1200,14 @@ elif menu == "👥 Khách hàng":
 
 
 # =========================================================
-# 13. DỊCH VỤ
+# 16. DỊCH VỤ
 # =========================================================
 
 elif menu == "🍽️ Dịch vụ":
 
-    st.title("🍽️ Dịch vụ khách sạn")
+    st.title(
+        "🍽️ Dịch vụ khách sạn"
+    )
 
     st.dataframe(
         st.session_state.services,
@@ -962,22 +1217,31 @@ elif menu == "🍽️ Dịch vụ":
 
     st.divider()
 
-    st.subheader("Thêm dịch vụ")
+    st.subheader(
+        "Thêm dịch vụ"
+    )
 
     with st.form("service_form"):
 
-        c1, c2, c3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-        with c1:
-            code = st.text_input("Mã dịch vụ")
+        with col1:
 
-        with c2:
-            name = st.text_input("Tên dịch vụ")
+            code = st.text_input(
+                "Mã dịch vụ"
+            )
 
-        with c3:
+        with col2:
+
+            name = st.text_input(
+                "Tên dịch vụ"
+            )
+
+        with col3:
+
             price = st.number_input(
                 "Đơn giá",
-                0,
+                min_value=0,
                 step=10000
             )
 
@@ -986,39 +1250,55 @@ elif menu == "🍽️ Dịch vụ":
             use_container_width=True
         )
 
-    if submit and code and name:
+    if submit:
 
-        new = pd.DataFrame(
-            [[code, name, price]],
-            columns=[
-                "Mã",
-                "Dịch vụ",
-                "Đơn giá"
-            ]
-        )
+        if not code.strip():
 
-        st.session_state.services = pd.concat(
-            [
-                st.session_state.services,
-                new
-            ],
-            ignore_index=True
-        )
+            st.error(
+                "Vui lòng nhập mã dịch vụ."
+            )
 
-        st.success(
-            "Đã thêm dịch vụ."
-        )
+        elif not name.strip():
 
-        st.rerun()
+            st.error(
+                "Vui lòng nhập tên dịch vụ."
+            )
+
+        else:
+
+            new_service = pd.DataFrame(
+                [[code, name, price]],
+                columns=[
+                    "Mã",
+                    "Dịch vụ",
+                    "Đơn giá"
+                ]
+            )
+
+            st.session_state.services = pd.concat(
+                [
+                    st.session_state.services,
+                    new_service
+                ],
+                ignore_index=True
+            )
+
+            st.success(
+                "Đã thêm dịch vụ."
+            )
+
+            st.rerun()
 
 
 # =========================================================
-# 14. HÓA ĐƠN
+# 17. HÓA ĐƠN
 # =========================================================
 
 elif menu == "🧾 Hóa đơn":
 
-    st.title("🧾 Hóa đơn")
+    st.title(
+        "🧾 Hóa đơn"
+    )
 
     bookings = st.session_state.bookings
 
@@ -1032,27 +1312,34 @@ elif menu == "🧾 Hóa đơn":
 
         booking_id = st.selectbox(
             "Chọn booking",
-            bookings["Mã booking"]
+            bookings["Mã booking"].tolist()
         )
 
         invoice = bookings[
-            bookings["Mã booking"]
-            == booking_id
+            bookings["Mã booking"] == booking_id
         ].iloc[0]
 
         st.markdown(
             f"""
-            ### CHARM PEARL HOTEL
+            ## CHARM PEARL HOTEL
+
+            **Vũng Tàu**
+
+            ---
 
             **Mã booking:** {invoice["Mã booking"]}
 
             **Khách hàng:** {invoice["Khách hàng"]}
+
+            **Số điện thoại:** {invoice["Số điện thoại"]}
 
             **Phòng:** {invoice["Phòng"]}
 
             **Check-in:** {invoice["Check-in"]}
 
             **Check-out:** {invoice["Check-out"]}
+
+            **Số đêm:** {invoice["Số đêm"]}
 
             ---
 
@@ -1066,12 +1353,14 @@ elif menu == "🧾 Hóa đơn":
 
 
 # =========================================================
-# 15. DOANH THU
+# 18. DOANH THU
 # =========================================================
 
 elif menu == "💰 Doanh thu":
 
-    st.title("💰 Doanh thu")
+    st.title(
+        "💰 Doanh thu"
+    )
 
     bookings = st.session_state.bookings
 
@@ -1095,33 +1384,41 @@ elif menu == "💰 Doanh thu":
         + service_revenue
     )
 
-    c1, c2, c3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    c1.metric(
-        "Doanh thu phòng",
-        money(room_revenue)
+    with col1:
+
+        st.metric(
+            "Doanh thu phòng",
+            money(room_revenue)
+        )
+
+    with col2:
+
+        st.metric(
+            "Dịch vụ",
+            money(service_revenue)
+        )
+
+    with col3:
+
+        st.metric(
+            "Tổng doanh thu",
+            money(total)
+        )
+
+    chart = pd.DataFrame(
+        {
+            "Khoản thu": [
+                "Phòng",
+                "Dịch vụ"
+            ],
+            "Doanh thu": [
+                room_revenue,
+                service_revenue
+            ]
+        }
     )
-
-    c2.metric(
-        "Dịch vụ",
-        money(service_revenue)
-    )
-
-    c3.metric(
-        "Tổng doanh thu",
-        money(total)
-    )
-
-    chart = pd.DataFrame({
-        "Khoản thu": [
-            "Phòng",
-            "Dịch vụ"
-        ],
-        "Doanh thu": [
-            room_revenue,
-            service_revenue
-        ]
-    })
 
     st.bar_chart(
         chart.set_index("Khoản thu")
@@ -1129,12 +1426,14 @@ elif menu == "💰 Doanh thu":
 
 
 # =========================================================
-# 16. BÁO CÁO
+# 19. BÁO CÁO
 # =========================================================
 
 elif menu == "📊 Báo cáo":
 
-    st.title("📊 Báo cáo khách sạn")
+    st.title(
+        "📊 Báo cáo khách sạn"
+    )
 
     rooms = st.session_state.rooms
 
@@ -1147,26 +1446,38 @@ elif menu == "📊 Báo cáo":
         )
     )
 
-    c1, c2, c3, c4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-    c1.metric(
-        "Tổng phòng",
-        len(rooms)
-    )
+    with col1:
 
-    c2.metric(
-        "Phòng trống",
-        int(status_count["Trống"])
-    )
+        st.metric(
+            "Tổng phòng",
+            len(rooms)
+        )
 
-    c3.metric(
-        "Đang ở",
-        int(status_count["Đang ở"])
-    )
+    with col2:
 
-    c4.metric(
-        "Bảo trì",
-        int(status_count["Bảo trì"])
+        st.metric(
+            "Phòng trống",
+            int(status_count["Trống"])
+        )
+
+    with col3:
+
+        st.metric(
+            "Đang ở",
+            int(status_count["Đang ở"])
+        )
+
+    with col4:
+
+        st.metric(
+            "Bảo trì",
+            int(status_count["Bảo trì"])
+        )
+
+    st.subheader(
+        "Tình trạng phòng"
     )
 
     st.bar_chart(
@@ -1174,7 +1485,7 @@ elif menu == "📊 Báo cáo":
     )
 
     st.subheader(
-        "Danh sách phòng"
+        "Danh sách 50 phòng"
     )
 
     st.dataframe(
@@ -1185,7 +1496,661 @@ elif menu == "📊 Báo cáo":
 
 
 # =========================================================
-# FOOTER
+# 20. CHATBOX
+# =========================================================
+
+elif menu == "💬 Chat với Charm Pearl":
+
+    st.markdown(
+        """
+        <div class="chat-header">
+
+            <h2>💬 Charm Pearl Concierge</h2>
+
+            <p>
+                Trợ lý trực tuyến của Charm Pearl Hotel
+            </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    st.info(
+        "Bạn có thể hỏi về phòng, giá phòng, "
+        "phòng còn trống, dịch vụ hoặc cách đặt phòng."
+    )
+
+
+    # =====================================================
+    # HÀM XỬ LÝ CHAT
+    # =====================================================
+
+    def chatbot_response(question):
+
+        q = question.lower().strip()
+
+        rooms = st.session_state.rooms
+        services = st.session_state.services
+
+
+        # ---------------------------------------------
+        # CHÀO HỎI
+        # ---------------------------------------------
+
+        if any(
+            word in q
+            for word in [
+                "xin chào",
+                "chào",
+                "hello",
+                "hi",
+                "hey"
+            ]
+        ):
+
+            return (
+                "Xin chào! Tôi là trợ lý ảo "
+                "của Charm Pearl Hotel. 🏨\n\n"
+                "Tôi có thể giúp bạn tìm hiểu "
+                "về phòng, giá phòng, dịch vụ "
+                "và đặt phòng."
+            )
+
+
+        # ---------------------------------------------
+        # TỔNG SỐ PHÒNG
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "bao nhiêu phòng",
+                "mấy phòng",
+                "số lượng phòng",
+                "tổng số phòng"
+            ]
+        ):
+
+            return (
+                "Charm Pearl Hotel hiện có "
+                "50 phòng trên 5 tầng."
+            )
+
+
+        # ---------------------------------------------
+        # PHÒNG TRỐNG
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "phòng trống",
+                "còn phòng",
+                "còn phòng nào",
+                "phòng nào còn",
+                "phòng đang trống"
+            ]
+        ):
+
+            available = rooms[
+                rooms["Trạng thái"] == "Trống"
+            ]
+
+            if available.empty:
+
+                return (
+                    "Hiện tại hệ thống không ghi nhận "
+                    "phòng trống."
+                )
+
+            result = []
+
+            for room_type in ROOM_TYPES:
+
+                count = len(
+                    available[
+                        available["Loại phòng"]
+                        == room_type
+                    ]
+                )
+
+                if count > 0:
+
+                    result.append(
+                        f"• {room_type}: {count} phòng"
+                    )
+
+            return (
+                "Hiện Charm Pearl Hotel đang có:\n\n"
+                + "\n".join(result)
+            )
+
+
+        # ---------------------------------------------
+        # HỎI GIÁ PHÒNG
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "giá phòng",
+                "giá bao nhiêu",
+                "bao nhiêu tiền",
+                "phòng bao nhiêu",
+                "giá các phòng"
+            ]
+        ):
+
+            result = []
+
+            for room_type, info in ROOM_TYPES.items():
+
+                result.append(
+                    f"• {room_type}: "
+                    f"{money(info['price'])}/đêm"
+                )
+
+            return (
+                "Bảng giá phòng hiện tại:\n\n"
+                + "\n".join(result)
+            )
+
+
+        # ---------------------------------------------
+        # HỎI RIÊNG TỪNG HẠNG PHÒNG
+        # ---------------------------------------------
+
+        for room_type, info in ROOM_TYPES.items():
+
+            if room_type.lower() in q:
+
+                available = len(
+                    rooms[
+                        (rooms["Loại phòng"] == room_type)
+                        &
+                        (rooms["Trạng thái"] == "Trống")
+                    ]
+                )
+
+                return (
+                    f"🏨 {room_type}\n\n"
+                    f"💰 Giá: {money(info['price'])}/đêm\n"
+                    f"👥 Sức chứa: {info['capacity']} khách\n"
+                    f"🟢 Hiện còn: {available} phòng\n\n"
+                    f"{info['description']}"
+                )
+
+
+        # ---------------------------------------------
+        # SỨC CHỨA
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "mấy người",
+                "bao nhiêu người",
+                "sức chứa",
+                "ở được bao nhiêu"
+            ]
+        ):
+
+            result = []
+
+            for room_type, info in ROOM_TYPES.items():
+
+                result.append(
+                    f"• {room_type}: "
+                    f"{info['capacity']} khách"
+                )
+
+            return (
+                "Sức chứa các hạng phòng:\n\n"
+                + "\n".join(result)
+            )
+
+
+        # ---------------------------------------------
+        # DỊCH VỤ
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "dịch vụ",
+                "tiện ích",
+                "có những gì",
+                "khách sạn có gì"
+            ]
+        ):
+
+            result = []
+
+            for _, service in services.iterrows():
+
+                result.append(
+                    f"• {service['Dịch vụ']}: "
+                    f"{money(service['Đơn giá'])}"
+                )
+
+            return (
+                "Charm Pearl Hotel hiện có "
+                "các dịch vụ:\n\n"
+                + "\n".join(result)
+            )
+
+
+        # ---------------------------------------------
+        # SPA
+        # ---------------------------------------------
+
+        if "spa" in q:
+
+            spa = services[
+                services["Dịch vụ"]
+                .str.lower()
+                .str.contains("spa")
+            ]
+
+            if not spa.empty:
+
+                price = spa.iloc[0]["Đơn giá"]
+
+                return (
+                    "Có. Charm Pearl Hotel có "
+                    f"dịch vụ Spa với giá "
+                    f"tham khảo {money(price)}."
+                )
+
+            return (
+                "Bạn vui lòng liên hệ lễ tân "
+                "để kiểm tra tình trạng dịch vụ Spa."
+            )
+
+
+        # ---------------------------------------------
+        # ĂN SÁNG
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "ăn sáng",
+                "bữa sáng",
+                "breakfast"
+            ]
+        ):
+
+            breakfast = services[
+                services["Dịch vụ"]
+                .str.lower()
+                .str.contains("ăn sáng")
+            ]
+
+            if not breakfast.empty:
+
+                price = breakfast.iloc[0]["Đơn giá"]
+
+                return (
+                    "Charm Pearl Hotel có dịch vụ "
+                    f"ăn sáng với giá "
+                    f"{money(price)}/khách."
+                )
+
+            return (
+                "Bạn vui lòng liên hệ lễ tân "
+                "để biết thông tin ăn sáng."
+            )
+
+
+        # ---------------------------------------------
+        # CHECK-IN
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "check in",
+                "check-in",
+                "nhận phòng"
+            ]
+        ):
+
+            return (
+                "Bạn có thể thực hiện thủ tục "
+                "check-in tại quầy lễ tân. "
+                "Nếu đã có booking, vui lòng "
+                "cung cấp mã đặt phòng khi nhận phòng."
+            )
+
+
+        # ---------------------------------------------
+        # CHECK-OUT
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "check out",
+                "check-out",
+                "trả phòng"
+            ]
+        ):
+
+            return (
+                "Khi trả phòng, bạn vui lòng "
+                "liên hệ quầy lễ tân để kiểm tra "
+                "phòng và thanh toán các khoản "
+                "phát sinh nếu có."
+            )
+
+
+        # ---------------------------------------------
+        # ĐẶT PHÒNG
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "đặt phòng",
+                "book phòng",
+                "booking",
+                "muốn đặt",
+                "đặt giúp"
+            ]
+        ):
+
+            return (
+                "Bạn có thể đặt phòng trực tiếp "
+                "trong mục 📅 Đặt phòng ở menu "
+                "bên trái.\n\n"
+                "Tại đó bạn có thể chọn ngày, "
+                "hạng phòng, số phòng và nhập "
+                "thông tin khách."
+            )
+
+
+        # ---------------------------------------------
+        # VỊ TRÍ
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "ở đâu",
+                "địa chỉ",
+                "vị trí",
+                "địa điểm"
+            ]
+        ):
+
+            return (
+                "Charm Pearl Hotel tọa lạc tại "
+                "Vũng Tàu."
+            )
+
+
+        # ---------------------------------------------
+        # CẢM ƠN
+        # ---------------------------------------------
+
+        if any(
+            phrase in q
+            for phrase in [
+                "cảm ơn",
+                "thank",
+                "thanks"
+            ]
+        ):
+
+            return (
+                "Rất hân hạnh được hỗ trợ bạn. "
+                "Nếu muốn đặt phòng, bạn có thể "
+                "chọn mục 📅 Đặt phòng."
+            )
+
+
+        # ---------------------------------------------
+        # KHÔNG HIỂU
+        # ---------------------------------------------
+
+        return (
+            "Tôi chưa hiểu rõ câu hỏi của bạn.\n\n"
+            "Bạn có thể thử hỏi:\n\n"
+            "• Khách sạn có bao nhiêu phòng?\n"
+            "• Còn phòng Deluxe không?\n"
+            "• Giá phòng Suite bao nhiêu?\n"
+            "• Family ở được mấy người?\n"
+            "• Khách sạn có dịch vụ gì?\n"
+            "• Có Spa không?\n"
+            "• Tôi muốn đặt phòng."
+        )
+
+
+    # =====================================================
+    # GỢI Ý NHANH
+    # =====================================================
+
+    st.markdown(
+        "### Câu hỏi nhanh"
+    )
+
+    quick1, quick2, quick3, quick4 = st.columns(4)
+
+
+    with quick1:
+
+        if st.button(
+            "🏨 Còn phòng?",
+            use_container_width=True
+        ):
+
+            question = "Hiện khách sạn còn phòng nào?"
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "user",
+                    "content": question
+                }
+            )
+
+
+            answer = chatbot_response(
+                question
+            )
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": answer
+                }
+            )
+
+
+            st.rerun()
+
+
+    with quick2:
+
+        if st.button(
+            "💰 Giá phòng",
+            use_container_width=True
+        ):
+
+            question = "Giá các phòng bao nhiêu?"
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "user",
+                    "content": question
+                }
+            )
+
+
+            answer = chatbot_response(
+                question
+            )
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": answer
+                }
+            )
+
+
+            st.rerun()
+
+
+    with quick3:
+
+        if st.button(
+            "🍽️ Dịch vụ",
+            use_container_width=True
+        ):
+
+            question = "Khách sạn có những dịch vụ gì?"
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "user",
+                    "content": question
+                }
+            )
+
+
+            answer = chatbot_response(
+                question
+            )
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": answer
+                }
+            )
+
+
+            st.rerun()
+
+
+    with quick4:
+
+        if st.button(
+            "📅 Đặt phòng",
+            use_container_width=True
+        ):
+
+            question = "Tôi muốn đặt phòng."
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "user",
+                    "content": question
+                }
+            )
+
+
+            answer = chatbot_response(
+                question
+            )
+
+
+            st.session_state.chat_history.append(
+                {
+                    "role": "assistant",
+                    "content": answer
+                }
+            )
+
+
+            st.rerun()
+
+
+    st.divider()
+
+
+    # =====================================================
+    # HIỂN THỊ LỊCH SỬ CHAT
+    # =====================================================
+
+    for message in st.session_state.chat_history:
+
+        with st.chat_message(
+            message["role"]
+        ):
+
+            st.markdown(
+                message["content"]
+            )
+
+
+    # =====================================================
+    # Ô CHAT
+    # =====================================================
+
+    user_message = st.chat_input(
+        "Nhập câu hỏi cho Charm Pearl..."
+    )
+
+
+    if user_message:
+
+        st.session_state.chat_history.append(
+            {
+                "role": "user",
+                "content": user_message
+            }
+        )
+
+
+        answer = chatbot_response(
+            user_message
+        )
+
+
+        st.session_state.chat_history.append(
+            {
+                "role": "assistant",
+                "content": answer
+            }
+        )
+
+
+        st.rerun()
+
+
+    # NÚT XÓA CHAT
+
+    if st.button(
+        "🗑️ Xóa cuộc trò chuyện"
+    ):
+
+        st.session_state.chat_history = [
+            {
+                "role": "assistant",
+                "content":
+                    "Xin chào! Tôi là trợ lý ảo "
+                    "của Charm Pearl Hotel. "
+                    "Tôi có thể hỗ trợ bạn về "
+                    "phòng, giá và dịch vụ."
+            }
+        ]
+
+        st.rerun()
+
+
+# =========================================================
+# 21. FOOTER
 # =========================================================
 
 st.divider()
