@@ -17,8 +17,8 @@ st.set_page_config(
 
 BASE = Path(__file__).parent
 
-LOGO = BASE / "IMG_BANNER2.jpg"
-BANNER = BASE / "IMG_LOGO1.jpg"
+LOGO = BASE / "IMG_LOGO11.jpg"
+BANNER = BASE / "IMG_BANNER2.jpg"
 BG = BASE / "IMG_NENCHIM3.jpg"
 
 HOTEL = "CHARM PEARL HOTEL"
